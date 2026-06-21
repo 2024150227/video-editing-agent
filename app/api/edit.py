@@ -66,16 +66,24 @@ async def start_edit(
 
     config = {"configurable": {"thread_id": project_id}}
 
-    # resume 传递用户确认的分镜和素材选择
-    resume_value = {
-        "storyboard": req.storyboard,
-    }
+    # resume 传递用户确认的素材选择（material_node 的 interrupt 接收）
+    # material_node 会将 resume value 作为 material_selections 写入 state
+    # 同时 update storyboard 和 bgm_path 到 state，避免重跑 director_node
+    resume_value = req.material_selections
 
     # 继续执行 graph — 从 material_node 中断后运行到 editor_node → END
     final_state = await graph.ainvoke(
         Command(resume=resume_value),
         config,
     )
+
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"[Edit] final_state keys: {list(final_state.keys())}")
+    logger.info(f"[Edit] current_step: {final_state.get('current_step')}")
+    logger.info(f"[Edit] task_id: {final_state.get('task_id')}")
+    logger.info(f"[Edit] task_status: {final_state.get('task_status')}")
+    logger.info(f"[Edit] error: {final_state.get('error')}")
 
     task_id = final_state.get("task_id")
     task_status = final_state.get("task_status") or {}

@@ -85,7 +85,7 @@ class RenderService:
             fps=settings.DEFAULT_FPS,
             codec="libx264",
             audio_codec="aac",
-            temp_audio_file_path=settings.OUTPUT_DIR,
+            temp_audiofile_path=settings.OUTPUT_DIR,
             threads=4,
             preset="medium",
         )

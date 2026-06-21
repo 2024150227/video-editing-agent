@@ -7,6 +7,7 @@ celery_app = Celery(
     "video_editing_agent",
     broker=settings.CELERY_BROKER_URL,
     backend=settings.CELERY_RESULT_BACKEND,
+    include=["app.workers.render_worker"],
 )
 
 celery_app.conf.update(

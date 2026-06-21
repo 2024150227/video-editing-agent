@@ -1,5 +1,6 @@
 """LangGraph Nodes — 导演 / 素材 / 剪辑 三个核心节点"""
 
+import os
 import json
 import logging
 from langchain_core.messages import SystemMessage, HumanMessage
@@ -9,7 +10,7 @@ from langgraph.types import interrupt
 from app.core.graph.state import VideoEditingState
 from app.core.graph.llm import get_chat_model
 from app.core.graph.tools import search_materials, generate_material
-from app.agents.editor import EditorAgent
+from app.services.render_service import RenderService
 
 logger = logging.getLogger(__name__)
 
@@ -174,38 +175,48 @@ async def material_node(state: VideoEditingState) -> dict:
 # 剪辑节点
 # ──────────────────────────────────────────────────────────
 async def editor_node(state: VideoEditingState) -> dict:
-    """提交渲染任务并轮询直到完成"""
-    logger.info("[Editor] 提交渲染任务...")
-
-    editor_agent = EditorAgent()
-    task_id = editor_agent.submit_edit(
-        project_id=state["project_id"],
-        storyboard=state["storyboard"],
-        material_selections=state.get("material_selections", []),
-        bgm_path=state.get("bgm_path"),
-    )
-
-    logger.info(f"[Editor] 任务已提交: {task_id}，等待完成...")
-
-    # 轮询直到完成
+    """同步渲染视频（在 executor 中运行以释放事件循环）"""
     import asyncio
-    task_status = editor_agent.get_task_status(task_id)
-    while task_status["status"] not in ("completed", "failed"):
-        await asyncio.sleep(2)
-        task_status = editor_agent.get_task_status(task_id)
+    import uuid
 
-    output_path = task_status.get("output_path")
+    project_id = state["project_id"]
+    storyboard = state["storyboard"]
+    material_selections = state.get("material_selections", [])
+    bgm_path = state.get("bgm_path")
 
-    return {
-        "task_id": task_id,
-        "task_status": task_status,
-        "current_step": "done" if task_status["status"] == "completed" else "error",
-        "error": task_status.get("error") if task_status["status"] == "failed" else None,
-        "messages": [SystemMessage(
-            content=f"渲染完成: {output_path}" if output_path
-            else f"渲染失败: {task_status.get('error', 'Unknown')}"
-        )],
-    }
+    task_id = str(uuid.uuid4())
+
+    logger.info(f"[Editor] 开始渲染: {task_id}")
+
+    def _render():
+        service = RenderService()
+        clip = service.build_timeline(storyboard, material_selections, bgm_path)
+        output_filename = f"{project_id}_{task_id}.mp4"
+        output_path = service.render(clip, output_filename)
+        if bgm_path and os.path.exists(str(bgm_path)):
+            output_path = service.add_bgm(output_path, bgm_path)
+        clip.close()
+        return output_path
+
+    loop = asyncio.get_event_loop()
+    try:
+        output_path = await loop.run_in_executor(None, _render)
+        logger.info(f"[Editor] 渲染完成: {output_path}")
+        return {
+            "task_id": task_id,
+            "task_status": {"status": "completed", "progress_pct": 100, "output_path": output_path},
+            "current_step": "done",
+            "messages": [SystemMessage(content=f"渲染完成: {output_path}")],
+        }
+    except Exception as e:
+        logger.exception(f"[Editor] 渲染失败")
+        return {
+            "task_id": task_id,
+            "task_status": {"status": "failed", "error": str(e), "progress_pct": 0},
+            "current_step": "error",
+            "error": str(e),
+            "messages": [SystemMessage(content=f"渲染失败: {e}")],
+        }
 
 
 # ──────────────────────────────────────────────────────────

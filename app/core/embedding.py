@@ -47,7 +47,9 @@ class EmbeddingService:
     @staticmethod
     def _tokenize(text: str):
         import clip
-        return clip.tokenize([text])
+        # CLIP tokenizer 上下文窗口为 77 tokens，clip.tokenize 会自动截断
+        # 但对异常长的输入，先做简单截断避免 tokenizer 报错
+        return clip.tokenize([text], truncate=True)
 
     def encode_text(self, text: str) -> list[float]:
         """将文本编码为向量"""
