@@ -52,6 +52,7 @@ class LLMClient:
             retries: int = 3,
     ) -> dict:
         """发送请求并强制解析 JSON 返回，解析失败自动重试"""
+        messages = [*messages]
         last_raw = ""
         for attempt in range(retries):
             raw = await self.chat(messages, temperature, max_tokens)
