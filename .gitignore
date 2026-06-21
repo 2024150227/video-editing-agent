@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.env
+*.db
+*.sqlite3
+output/
+*.mp4
+*.avi
+*.mov
+venv/
+.venv/
+*.log
+.superpowers/
