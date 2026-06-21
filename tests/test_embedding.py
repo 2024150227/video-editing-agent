@@ -38,7 +38,11 @@ class TestEmbeddingService:
                 assert isinstance(result, list)
                 assert len(result) == 512
 
-    def test_encode_image_returns_512d_vector(self):
+    @patch("PIL.Image.open")
+    def test_encode_image_returns_512d_vector(self, mock_image_open):
+        mock_image = MagicMock()
+        mock_image_open.return_value = mock_image
+
         mock_model = MagicMock()
         mock_model.encode_image.return_value = _make_tensor_mock(
             np.random.randn(1, 512).astype(np.float32)
