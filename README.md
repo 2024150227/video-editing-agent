@@ -1,6 +1,6 @@
 # 基于多模态大模型的智能视频剪辑 Agent
 
-基于多模态大模型（火山方舟 Doubao Vision Pro）的智能视频剪辑系统。用户提供原始素材和剪辑需求，系统自动完成分镜脚本生成、素材智能匹配、视频自动剪辑与渲染的全流程。
+基于多模态大模型（AgnesAPI）的智能视频剪辑系统。用户提供原始素材和剪辑需求，系统自动完成分镜脚本生成、素材智能匹配、视频自动剪辑与渲染的全流程。
 
 ## 系统架构
 
@@ -28,7 +28,7 @@
 ## 技术栈
 
 - **后端框架**: FastAPI (Python 3.11+)
-- **多模态 LLM**: 火山方舟 Doubao Vision Pro
+- **多模态 LLM**: AgnesAPI (agnes-2.0-flash, 免费)
 - **异步任务**: Celery + Redis
 - **向量数据库**: Qdrant + CLIP 嵌入
 - **视频处理**: MoviePy / FFmpeg
@@ -41,7 +41,7 @@
 
 - Python 3.11+
 - Docker & Docker Compose (用于启动 PostgreSQL / Redis / Qdrant)
-- 火山方舟 API Key (https://console.volcengine.com/ark)
+- AgnesAPI Key (https://platform.agnes-ai.com/)
 
 ### 1. 启动依赖服务
 
@@ -57,7 +57,7 @@ docker-compose up -d
 cp .env.example .env
 ```
 
-编辑 `.env` 文件，至少填入 `VOLCANO_ARK_API_KEY`。
+编辑 `.env` 文件，至少填入 `AGNES_API_KEY`。
 
 ### 3. 安装依赖
 

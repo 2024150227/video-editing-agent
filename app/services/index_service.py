@@ -55,9 +55,9 @@ class IndexService:
 
     def search(self, query_vector: list[float], top_k: int = 10) -> list[dict]:
         """向量相似度检索，返回 Top-K 结果"""
-        results = self.client.search(
+        results = self.client.query_points(
             collection_name=self.collection,
-            query_vector=query_vector,
+            query=query_vector,
             limit=top_k,
         )
         return [
@@ -69,7 +69,7 @@ class IndexService:
                 "file_type": r.payload.get("file_type", ""),
                 "project_id": r.payload.get("project_id", ""),
             }
-            for r in results
+            for r in results.points
         ]
 
     def search_by_text(self, text: str, top_k: int = 10) -> list[dict]:

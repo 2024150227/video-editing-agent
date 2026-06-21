@@ -13,7 +13,7 @@ def client():
 def settings_override():
     from app.core.config import Settings
     return Settings(
-        VOLCANO_ARK_API_KEY="test_key",
+        AGNES_API_KEY="test_key",
         DATABASE_URL="sqlite+aiosqlite:///:memory:",
         DATABASE_URL_SYNC="sqlite:///:memory:",
         OUTPUT_DIR="./test_output",

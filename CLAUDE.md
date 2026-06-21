@@ -2,7 +2,7 @@
 
 ## 项目概述
 
-基于多模态大模型（火山方舟）的智能视频剪辑 API 服务，使用 LangGraph 编排三个 Agent：
+基于多模态大模型（AgnesAPI）的智能视频剪辑 API 服务，使用 LangGraph 编排三个 Agent：
 - **导演 Agent** — 创意理解 → 分镜脚本生成
 - **素材 Agent** — 跨模态检索（CLIP + Qdrant）或 AI 生成
 - **剪辑 Agent** — MoviePy 时间线构建 + FFmpeg 渲染
@@ -10,7 +10,7 @@
 ## 技术栈
 
 - **框架**: FastAPI + LangGraph + LangChain
-- **模型**: 火山方舟 API (OpenAI 兼容，通过 ChatOpenAI 适配)
+- **模型**: AgnesAPI (免费，OpenAI 兼容，通过 ChatOpenAI 适配)
 - **向量**: CLIP (ViT-B/32) + Qdrant
 - **视频**: MoviePy 2.0+ + FFmpeg
 - **任务**: Celery + Redis
@@ -32,7 +32,7 @@ app/
 │   │   ├── state.py     # VideoEditingState
 │   │   ├── nodes.py     # 3 个节点函数
 │   │   ├── tools.py     # search_materials, generate_material
-│   │   ├── llm.py       # ChatOpenAI 工厂（火山方舟适配）
+│   │   ├── llm.py       # ChatOpenAI 工厂（AgnesAPI 适配）
 │   │   └── builder.py   # StateGraph 构建 + MemorySaver
 │   ├── config.py        # pydantic-settings
 │   ├── database.py      # SQLAlchemy async engine
@@ -54,7 +54,7 @@ app/
 
 ```bash
 docker-compose up -d                          # PostgreSQL + Redis + Qdrant
-cp .env.example .env                          # 配置火山方舟 API Key
+cp .env.example .env                          # 配置 AgnesAPI Key
 alembic upgrade head                          # 数据库迁移
 uvicorn app.main:app --reload --port 8000     # API
 celery -A app.core.celery_app worker -c 1     # Worker
@@ -92,7 +92,7 @@ pytest tests/test_api_integration.py -v  # 仅集成测试
 
 ## 注意事项
 
-- 火山方舟 API 是 OpenAI 兼容的，base_url 指向 `https://ark.cn-beijing.volces.com/api/v3`
+- AgnesAPI 是 OpenAI 兼容的，base_url 指向 `https://apihub.agnes-ai.com/v1`，免费无需付费
 - CLIP 模型首次加载需下载 ~330MB，后续有 lru_cache
 - 视频渲染是 CPU 密集型，Celery worker 建议 concurrency=1
 - 素材索引是异步任务，需启动 Celery Worker 后才执行

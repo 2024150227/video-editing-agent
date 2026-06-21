@@ -60,8 +60,14 @@ async def match_materials(
         config,
     )
 
-    # 提取素材匹配结果
+    # 提取素材匹配结果（在 interrupt 中或 state 中）
     matches = final_state.get("material_matches") or []
+    if not matches:
+        interrupts = final_state.get("__interrupt__", [])
+        if interrupts:
+            interrupt_data = interrupts[0].value if hasattr(interrupts[0], "value") else interrupts[0]
+            if isinstance(interrupt_data, dict):
+                matches = interrupt_data.get("material_matches", []) or []
 
     return [
         MaterialResponse(

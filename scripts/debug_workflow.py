@@ -7,18 +7,18 @@
     1. docker-compose up -d   (PostgreSQL + Redis + Qdrant)
     2. uvicorn app.main:app --port 8000
     3. celery -A app.core.celery_app worker -c 1
-    4. 配置好 .env 中的 VOLCANO_ARK_API_KEY
+    4. 配置好 .env 中的 AGNES_API_KEY
 """
 
 import requests
 import time
 import sys
 
-BASE = "http://localhost:8000/api/v1"
+BASE = "http://localhost:8001/api/v1"
 
 # ─── 检查服务是否就绪 ───
 try:
-    r = requests.get("http://localhost:8000/health", timeout=3)
+    r = requests.get("http://localhost:8001/health", timeout=3)
     r.raise_for_status()
     print(f"✅ API 服务就绪 — {r.json()}")
 except Exception as e:
@@ -131,7 +131,7 @@ if story and "shots" in story:
                 break
             time.sleep(2)
 else:
-    print("\n⚠️  分镜生成失败（可能是火山方舟 API Key 未配置），跳过后续步骤")
+    print("\n⚠️  分镜生成失败（可能是 AgnesAPI Key 未配置），跳过后续步骤")
 
 print(f"\n{'='*60}")
 print("🏁 调试流程结束")

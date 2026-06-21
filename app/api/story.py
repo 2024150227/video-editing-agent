@@ -20,7 +20,7 @@ class GenerateStoryRequest(BaseModel):
 
 class ShotResponse(BaseModel):
     index: int
-    duration_sec: int
+    duration_sec: float  # LLM 可能返回 1.5 等浮点数
     description: str
     shot_type: str
     camera_motion: str = "静态"
@@ -32,7 +32,7 @@ class StoryboardResponse(BaseModel):
     storyboard_id: str | None = None
     project_id: str
     style: str
-    total_duration_sec: int
+    total_duration_sec: float  # LLM 可能返回浮点数
     bgm_mood: str | None = None
     shots: list[ShotResponse]
     step: str = "storyboard_review"
@@ -76,14 +76,21 @@ async def generate_storyboard(
     # graph.invoke() 运行到第一个 interrupt（在 director_node 中）
     final_state = await graph.ainvoke(initial_state, config)
 
+    # 从 interrupt 中提取分镜（graph 在 return 之前就中断了）
     storyboard = final_state.get("storyboard") or {}
+    if not storyboard:
+        interrupts = final_state.get("__interrupt__", [])
+        if interrupts:
+            interrupt_data = interrupts[0].value if hasattr(interrupts[0], "value") else interrupts[0]
+            if isinstance(interrupt_data, dict):
+                storyboard = interrupt_data.get("storyboard", {}) or {}
 
     # 持久化分镜
     if "raw" not in storyboard and storyboard.get("shots"):
         storyboard_orm = Storyboard(
             project_id=project_id,
             style=storyboard.get("style", ""),
-            total_duration_sec=storyboard.get("total_duration_sec", req.total_duration_sec),
+            total_duration_sec=int(storyboard.get("total_duration_sec", req.total_duration_sec)),
             bgm_mood=storyboard.get("bgm_mood", ""),
             raw_prompt=req.prompt,
         )
@@ -94,7 +101,7 @@ async def generate_storyboard(
             shot = Shot(
                 storyboard_id=storyboard_orm.id,
                 index=shot_data.get("index", 0),
-                duration_sec=shot_data.get("duration_sec", 3),
+                duration_sec=int(shot_data.get("duration_sec", 3)),  # LLM 可能返回 float
                 description=shot_data.get("description", ""),
                 shot_type=shot_data.get("shot_type", "wide"),
                 camera_motion=shot_data.get("camera_motion", "静态"),

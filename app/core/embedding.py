@@ -24,6 +24,20 @@ class EmbeddingService:
             return False
 
     def _load_model(self):
+        # Patch: clip 库使用了已废弃的 `from pkg_resources import packaging`
+        # 新版 setuptools 移除了 pkg_resources 中的 packaging 属性
+        import sys
+        import packaging
+        import packaging.version  # clip.py 需要 packaging.version.parse()
+        if "pkg_resources" not in sys.modules:
+            import types
+            shim = types.ModuleType("pkg_resources")
+            shim.packaging = packaging
+            sys.modules["pkg_resources"] = shim
+        else:
+            # pkg_resources 已被其他模块加载，直接给它添加 packaging 属性
+            sys.modules["pkg_resources"].packaging = packaging
+
         import clip
         import torch
         logger.info(f"Loading CLIP model '{self.model_name}' on {self.device}...")

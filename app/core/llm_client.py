@@ -7,13 +7,13 @@ logger = logging.getLogger(__name__)
 
 
 class LLMClient:
-    """火山方舟 LLM API 客户端"""
+    """AgnesAPI LLM 客户端（OpenAI 兼容）"""
 
     def __init__(self, api_key: str | None = None, base_url: str | None = None, model: str | None = None):
         settings = get_settings()
-        self.api_key = api_key or settings.VOLCANO_ARK_API_KEY
-        self.base_url = base_url or settings.VOLCANO_ARK_BASE_URL
-        self.model = model or settings.VOLCANO_ARK_MODEL
+        self.api_key = api_key or settings.AGNES_API_KEY
+        self.base_url = base_url or settings.AGNES_BASE_URL
+        self.model = model or settings.AGNES_MODEL
 
     def _headers(self) -> dict:
         return {

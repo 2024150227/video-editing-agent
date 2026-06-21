@@ -20,10 +20,10 @@ class Settings(BaseSettings):
     QDRANT_PORT: int = 6333
     QDRANT_COLLECTION: str = "materials"
 
-    # 火山方舟
-    VOLCANO_ARK_API_KEY: str = ""
-    VOLCANO_ARK_BASE_URL: str = "https://ark.cn-beijing.volces.com/api/v3"
-    VOLCANO_ARK_MODEL: str = "doubao-vision-pro-32k"
+    # AgnesAPI — 多模态大模型（免费，OpenAI 兼容）
+    AGNES_API_KEY: str = ""
+    AGNES_BASE_URL: str = "https://apihub.agnes-ai.com/v1"
+    AGNES_MODEL: str = "agnes-2.0-flash"
 
     # CLIP
     CLIP_MODEL: str = "ViT-B/32"
