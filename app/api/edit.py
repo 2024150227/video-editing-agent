@@ -1,3 +1,6 @@
+"""剪辑 API — 确认素材后继续 LangGraph 到剪辑完成，以及状态/结果查询"""
+
+from langgraph.types import Command
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -6,7 +9,7 @@ from app.core.database import get_db
 from app.models.project import Project
 from app.models.task import EditTask, TaskStatus
 from app.agents.editor import EditorAgent
-from app.api.deps import get_editor_agent
+from app.api.deps import get_graph
 
 router = APIRouter(prefix="/api/v1/projects", tags=["edit"])
 
@@ -19,7 +22,7 @@ class EditRequest(BaseModel):
 
 
 class EditResponse(BaseModel):
-    task_id: str
+    task_id: str | None = None
     status: str
 
 
@@ -44,14 +47,14 @@ async def start_edit(
     project_id: str,
     req: EditRequest,
     db: AsyncSession = Depends(get_db),
-    editor: EditorAgent = Depends(get_editor_agent),
+    graph=Depends(get_graph),
 ):
-    """剪辑Agent：提交渲染任务"""
+    """继续 LangGraph — 素材确认后执行剪辑节点，同步等待渲染完成"""
     result = await db.execute(select(Project).where(Project.id == project_id))
     if not result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="项目不存在")
 
-    # 并发控制：检查是否有进行中的任务
+    # 并发控制
     existing = await db.execute(
         select(EditTask).where(
             EditTask.project_id == project_id,
@@ -61,35 +64,32 @@ async def start_edit(
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=429, detail="该项目已有进行中的渲染任务")
 
-    # 提交异步任务
-    task_id = editor.submit_edit(
-        project_id=project_id,
-        storyboard=req.storyboard,
-        material_selections=req.material_selections,
-        bgm_path=req.bgm_path,
+    config = {"configurable": {"thread_id": project_id}}
+
+    # resume 传递用户确认的分镜和素材选择
+    resume_value = {
+        "storyboard": req.storyboard,
+    }
+
+    # 继续执行 graph — 从 material_node 中断后运行到 editor_node → END
+    final_state = await graph.ainvoke(
+        Command(resume=resume_value),
+        config,
     )
 
-    # 持久化任务记录
-    edit_task = EditTask(
-        id=task_id,
-        project_id=project_id,
-        storyboard_id=req.storyboard.get("storyboard_id", ""),
-        status=TaskStatus.QUEUED,
-    )
-    db.add(edit_task)
-    await db.commit()
+    task_id = final_state.get("task_id")
+    task_status = final_state.get("task_status") or {}
 
-    return EditResponse(task_id=task_id, status="queued")
+    return EditResponse(
+        task_id=task_id,
+        status=task_status.get("status", "unknown"),
+    )
 
 
 @router.get("/{project_id}/status", response_model=TaskStatusResponse)
-async def get_edit_status(
-    project_id: str,
-    task_id: str,
-    db: AsyncSession = Depends(get_db),
-    editor: EditorAgent = Depends(get_editor_agent),
-):
+async def get_edit_status(project_id: str, task_id: str):
     """查询渲染任务状态"""
+    editor = EditorAgent()
     status = editor.get_task_status(task_id)
     return TaskStatusResponse(
         task_id=task_id,
@@ -102,12 +102,9 @@ async def get_edit_status(
 
 
 @router.get("/{project_id}/result", response_model=TaskResultResponse)
-async def get_edit_result(
-    project_id: str,
-    task_id: str,
-    editor: EditorAgent = Depends(get_editor_agent),
-):
+async def get_edit_result(project_id: str, task_id: str):
     """获取最终视频"""
+    editor = EditorAgent()
     result = editor.get_output_url(task_id)
     return TaskResultResponse(
         ready=result["ready"],

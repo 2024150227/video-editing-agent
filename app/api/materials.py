@@ -1,19 +1,20 @@
+"""素材 API — 确认分镜后继续 LangGraph，在素材匹配后中断返回"""
+
+from langgraph.types import Command
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
 from app.core.database import get_db
 from app.models.project import Project
-from app.models.material import MaterialMatch
-from app.agents.material import MaterialAgent
-from app.api.deps import get_material_agent
+from app.api.deps import get_graph
 
 router = APIRouter(prefix="/api/v1/projects", tags=["materials"])
 
 
 class MaterialRequest(BaseModel):
-    mode: str = "retrieval"  # "retrieval" | "generation"
-    storyboard: dict
+    mode: str = "retrieval"          # "retrieval" | "generation"
+    storyboard: dict | None = None   # 用户确认/修改后的分镜
     material_overrides: dict | None = None
 
 
@@ -36,9 +37,9 @@ async def match_materials(
     project_id: str,
     req: MaterialRequest,
     db: AsyncSession = Depends(get_db),
-    agent: MaterialAgent = Depends(get_material_agent),
+    graph=Depends(get_graph),
 ):
-    """素材Agent：检索匹配素材"""
+    """继续 LangGraph — 素材节点执行，匹配完成后中断返回"""
     result = await db.execute(select(Project).where(Project.id == project_id))
     if not result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="项目不存在")
@@ -46,21 +47,31 @@ async def match_materials(
     if req.mode not in ("retrieval", "generation"):
         raise HTTPException(status_code=400, detail="mode 必须为 retrieval 或 generation")
 
-    matches = await agent.match_materials(
-        storyboard=req.storyboard,
-        mode=req.mode,
-        material_overrides=req.material_overrides,
+    config = {"configurable": {"thread_id": project_id}}
+
+    # 用户确认的分镜（可能修改过）作为 resume 值
+    resume_value = {
+        "storyboard": req.storyboard,
+    }
+
+    # 继续执行 graph，从 director_node 的 interrupt 之后继续
+    final_state = await graph.ainvoke(
+        Command(resume=resume_value),
+        config,
     )
+
+    # 提取素材匹配结果
+    matches = final_state.get("material_matches") or []
 
     return [
         MaterialResponse(
-            shot_index=m["shot_index"],
+            shot_index=m.get("shot_index", 0),
             candidates=[
                 CandidateResponse(
-                    material_id=c["material_id"],
-                    file_name=c["file_name"],
-                    clip_range=c["clip_range"],
-                    score=c["score"],
+                    material_id=c.get("material_id", ""),
+                    file_name=c.get("file_name", ""),
+                    clip_range=c.get("clip_range", [0, 3]),
+                    score=c.get("score", 0.0),
                     reason=c.get("reason", ""),
                 )
                 for c in m.get("candidates", [])

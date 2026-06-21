@@ -1,23 +1,15 @@
+from functools import lru_cache
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
-from app.core.llm_client import LLMClient
-from app.agents.director import DirectorAgent
-from app.agents.material import MaterialAgent
-from app.agents.editor import EditorAgent
+from app.core.graph.builder import build_graph
 
 
-async def get_llm_client():
-    return LLMClient()
+@lru_cache()
+def get_graph():
+    """返回编译后的 LangGraph（单例，共享 MemorySaver）"""
+    return build_graph()
 
 
-def get_director_agent(llm: LLMClient = Depends(get_llm_client)):
-    return DirectorAgent(llm_client=llm)
-
-
-def get_material_agent(llm: LLMClient = Depends(get_llm_client)):
-    return MaterialAgent(llm_client=llm)
-
-
-def get_editor_agent():
-    return EditorAgent()
+async def get_db_session(db: AsyncSession = Depends(get_db)):
+    return db
