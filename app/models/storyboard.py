@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import String, DateTime, Integer, ForeignKey, Text, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
@@ -14,9 +14,10 @@ class Storyboard(Base):
     total_duration_sec: Mapped[int] = mapped_column(Integer, nullable=False)
     bgm_mood: Mapped[str] = mapped_column(String(200), nullable=True)
     raw_prompt: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
     shots: Mapped[list["Shot"]] = relationship("Shot", back_populates="storyboard", cascade="all, delete-orphan")
+    matches: Mapped[list["MaterialMatch"]] = relationship("MaterialMatch", back_populates="storyboard")
 
 
 class Shot(Base):
@@ -30,6 +31,6 @@ class Shot(Base):
     shot_type: Mapped[str] = mapped_column(String(50), nullable=False)
     camera_motion: Mapped[str] = mapped_column(String(50), default="静态")
     transition: Mapped[str] = mapped_column(String(50), default="硬切")
-    mood_words: Mapped[dict] = mapped_column(JSON, default=list)
+    mood_words: Mapped[list] = mapped_column(JSON, default=lambda: [])
 
     storyboard: Mapped["Storyboard"] = relationship("Storyboard", back_populates="shots")
